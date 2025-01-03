@@ -30,22 +30,22 @@ A modern web application for managing and visualizing enterprise technology init
 
 ### 1. Clone the Repository
 
-\`\`\`bash
+```bash
 git clone [repository-url]
 cd roadmap-system
-\`\`\`
+```
 
 ### 2. Database Setup
 
 1. Create a new PostgreSQL database:
 
-\`\`\`sql
+```sql
 CREATE DATABASE roadmap_system;
-\`\`\`
+```
 
 2. Create the schema and tables:
 
-\`\`\`sql
+```sql
 -- Create schema
 CREATE SCHEMA roadmap;
 
@@ -123,11 +123,11 @@ CREATE TABLE roadmap.roadmap_projects (
     custom_end_date DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-\`\`\`
+```
 
 3. Load sample data:
 
-\`\`\`sql
+```sql
 -- Insert Organizations
 INSERT INTO roadmap.organizations (name, description) VALUES
 ('Technology Division', 'Core technology and infrastructure'),
@@ -177,51 +177,51 @@ INSERT INTO roadmap.roadmap_projects (application_id, project_id, custom_start_d
 (1, 1, '2024-01-01', '2024-06-30'),
 (2, 2, '2024-03-01', '2024-08-31'),
 (4, 3, '2024-02-01', '2024-07-31');
-\`\`\`
+```
 
 ### 3. Backend Setup
 
 1. Navigate to the server directory:
-\`\`\`bash
+```bash
 cd server
-\`\`\`
+```
 
 2. Install dependencies:
-\`\`\`bash
+```bash
 npm install
-\`\`\`
+```
 
 3. Create a .env file:
-\`\`\`
+```plaintext
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=roadmap_system
 DB_USER=your_username
 DB_PASSWORD=your_password
 PORT=3001
-\`\`\`
+```
 
 4. Start the server:
-\`\`\`bash
+```bash
 npm run dev
-\`\`\`
+```
 
 ### 4. Frontend Setup
 
 1. Navigate to the client directory:
-\`\`\`bash
+```bash
 cd client
-\`\`\`
+```
 
 2. Install dependencies:
-\`\`\`bash
+```bash
 npm install
-\`\`\`
+```
 
 3. Start the development server:
-\`\`\`bash
+```bash
 npm run dev
-\`\`\`
+```
 
 The application should now be running at `http://localhost:5173`
 
@@ -243,7 +243,7 @@ In the project directory, you can run:
 
 ## Project Structure
 
-```
+```plaintext
 roadmap-system/
 ├── client/                 # Frontend React application
 │   ├── src/
