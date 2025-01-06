@@ -1,0 +1,131 @@
+@startuml Database Schema
+
+!define table(x) class x << (T,#FFAAAA) >>
+!define primary_key(x) <u>x</u>
+!define foreign_key(x) <i>x</i>
+
+table(organizations) {
+    primary_key(id): UUID
+    name: VARCHAR(255)
+    created_at: TIMESTAMPTZ
+    updated_at: TIMESTAMPTZ
+}
+
+table(areas) {
+    primary_key(id): UUID
+    foreign_key(organization_id): UUID
+    name: VARCHAR(255)
+    created_at: TIMESTAMPTZ
+    updated_at: TIMESTAMPTZ
+}
+
+table(teams) {
+    primary_key(id): UUID
+    foreign_key(area_id): UUID
+    name: VARCHAR(255)
+    created_at: TIMESTAMPTZ
+    updated_at: TIMESTAMPTZ
+}
+
+table(architects) {
+    primary_key(id): UUID
+    foreign_key(team_id): UUID
+    name: VARCHAR(255)
+    email: VARCHAR(255)
+    created_at: TIMESTAMPTZ
+    updated_at: TIMESTAMPTZ
+}
+
+table(applications) {
+    primary_key(id): UUID
+    foreign_key(architect_id): UUID
+    name: VARCHAR(255)
+    description: TEXT
+    created_at: TIMESTAMPTZ
+    updated_at: TIMESTAMPTZ
+}
+
+table(subsystems) {
+    primary_key(id): SERIAL
+    foreign_key(application_id): UUID
+    name: VARCHAR(255)
+    description: TEXT
+    enterprise_id: VARCHAR(50)
+    type: VARCHAR(50)
+    status: VARCHAR(50)
+    created_at: TIMESTAMPTZ
+    updated_at: TIMESTAMPTZ
+}
+
+table(capabilities) {
+    primary_key(id): SERIAL
+    foreign_key(subsystem_id): INTEGER
+    name: VARCHAR(255)
+    description: TEXT
+    type: VARCHAR(50)
+    status: VARCHAR(50)
+    created_at: TIMESTAMPTZ
+    updated_at: TIMESTAMPTZ
+}
+
+table(projects) {
+    primary_key(id): UUID
+    name: VARCHAR(255)
+    description: TEXT
+    start_date: DATE
+    end_date: DATE
+    status: VARCHAR(50)
+    foreign_key(owner_architect_id): UUID
+    foreign_key(owner_team_id): UUID
+    project_type: VARCHAR(50)
+    is_shared: BOOLEAN
+    created_at: TIMESTAMPTZ
+    updated_at: TIMESTAMPTZ
+}
+
+table(project_subscriptions) {
+    primary_key(id): UUID
+    foreign_key(project_id): UUID
+    foreign_key(team_id): UUID
+    start_date: DATE
+    end_date: DATE
+    status: VARCHAR(50)
+    is_starred: BOOLEAN
+    created_at: TIMESTAMPTZ
+    updated_at: TIMESTAMPTZ
+}
+
+table(project_dependencies) {
+    primary_key(id): SERIAL
+    foreign_key(project_id): UUID
+    foreign_key(dependency_project_id): UUID
+    dependency_type: VARCHAR(50)
+    created_at: TIMESTAMPTZ
+    updated_at: TIMESTAMPTZ
+}
+
+table(project_subsystems) {
+    primary_key(id): SERIAL
+    foreign_key(project_id): UUID
+    foreign_key(subsystem_id): INTEGER
+    custom_start_date: DATE
+    custom_end_date: DATE
+    notes: TEXT
+    created_at: TIMESTAMPTZ
+}
+
+organizations "1" -- "*" areas
+areas "1" -- "*" teams
+teams "1" -- "*" architects
+architects "1" -- "*" applications
+applications "1" -- "*" subsystems
+subsystems "1" -- "*" capabilities
+projects "*" -- "*" subsystems : project_subsystems
+projects "1" -- "*" project_dependencies
+project_dependencies "*" -- "1" projects
+projects "1" -- "*" project_subscriptions
+teams "1" -- "*" project_subscriptions
+architects "1" -- "*" projects : owns
+teams "1" -- "*" projects : owns
+
+@enduml 

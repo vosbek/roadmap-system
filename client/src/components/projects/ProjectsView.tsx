@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, Users, Calendar, AlertCircle, Building2, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import CreateProjectModal from './CreateProjectModal';
 
 interface Project {
@@ -45,6 +46,7 @@ interface ProjectImpact {
 
 const ProjectsView: React.FC = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -168,7 +170,10 @@ const ProjectsView: React.FC = () => {
                     ? 'border-blue-500 bg-blue-50'
                     : 'hover:bg-gray-50'
                 }`}
-                onClick={() => setSelectedProjectId(project.id)}
+                onClick={() => {
+                  setSelectedProjectId(project.id);
+                  navigate(`/projects/${project.id}/impact`);
+                }}
               >
                 <h3 className="font-medium">{project.title}</h3>
                 <div className="flex items-center justify-between mt-2">

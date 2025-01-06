@@ -1,12 +1,23 @@
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import TeamsView from './components/teams/TeamsView';
 import TeamDetailsView from './components/teams/TeamDetailsView';
+import TeamRoadmapView from './components/teams/TeamRoadmapView';
 import ProjectsView from './components/projects/ProjectsView';
 import ExecutiveDashboardView from './components/dashboard/ExecutiveDashboardView';
 import RoadmapView from './components/roadmap/RoadmapView';
 import ProjectImpactView from './components/roadmap/ProjectImpactView';
 import OrganizationsView from './components/organizations/OrganizationsView';
+import ExecutiveView from './components/executive/ExecutiveView';
+import IngestionView from './components/ingestion/IngestionView';
+import IntegrationsView from './components/integrations/IntegrationsView';
+import Navigation from './components/common/Navigation';
+import ApplicationArchitectureView from './components/architect/ApplicationArchitectureView';
+import StrategicRoadmapView from './components/strategic/StrategicRoadmapView';
+import ProjectView from './components/projects/ProjectView';
+import TeamDependenciesView from './components/teams/TeamDependenciesView';
+import TeamRoadmapsView from './components/teams/TeamRoadmapsView';
 
 const queryClient = new QueryClient();
 
@@ -15,53 +26,24 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <div className="flex h-screen">
-          {/* Sidebar */}
-          <div className="w-64 bg-gray-800 text-white p-4">
-            <nav className="space-y-2">
-              <Link
-                to="/dashboard"
-                className="block px-4 py-2 rounded hover:bg-gray-700 transition-colors"
-              >
-                Dashboard
-              </Link>
-              <Link
-                to="/roadmap"
-                className="block px-4 py-2 rounded hover:bg-gray-700 transition-colors"
-              >
-                Roadmap
-              </Link>
-              <Link
-                to="/projects"
-                className="block px-4 py-2 rounded hover:bg-gray-700 transition-colors"
-              >
-                Projects
-              </Link>
-              <Link
-                to="/teams"
-                className="block px-4 py-2 rounded hover:bg-gray-700 transition-colors"
-              >
-                Teams
-              </Link>
-              <Link
-                to="/organizations"
-                className="block px-4 py-2 rounded hover:bg-gray-700 transition-colors"
-              >
-                Organizations
-              </Link>
-            </nav>
-          </div>
-
-          {/* Main Content */}
-          <div className="flex-1 overflow-auto">
+          <Navigation />
+          <div className="flex-1 overflow-auto bg-gray-50">
             <Routes>
-              <Route path="/" element={<RoadmapView />} />
-              <Route path="/dashboard" element={<ExecutiveDashboardView />} />
+              <Route path="/" element={<ExecutiveDashboardView />} />
               <Route path="/roadmap" element={<RoadmapView />} />
               <Route path="/projects" element={<ProjectsView />} />
+              <Route path="/projects/:id" element={<ProjectView />} />
               <Route path="/projects/:id/impact" element={<ProjectImpactView />} />
-              <Route path="/teams" element={<TeamsView />} />
+              <Route path="/teams/dependencies" element={<TeamDependenciesView />} />
+              <Route path="/teams/roadmaps" element={<TeamRoadmapsView />} />
               <Route path="/teams/:id" element={<TeamDetailsView />} />
+              <Route path="/teams/:id/roadmap" element={<TeamRoadmapView />} />
               <Route path="/organizations" element={<OrganizationsView />} />
+              <Route path="/executive" element={<ExecutiveView />} />
+              <Route path="/ingestion" element={<IngestionView />} />
+              <Route path="/integrations" element={<IntegrationsView />} />
+              <Route path="/strategic" element={<StrategicRoadmapView />} />
+              <Route path="/architect" element={<ApplicationArchitectureView />} />
             </Routes>
           </div>
         </div>

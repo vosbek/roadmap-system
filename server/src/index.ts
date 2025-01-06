@@ -1,58 +1,37 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { Pool } from 'pg';
-import { createRoutes } from './routes/index';
+import routes from './routes';
+import { initNeo4j, driver } from './config/neo4j';
 
 dotenv.config();
+
 const app = express();
+const port = process.env.PORT || 3001;
 
-// Configure CORS
-app.use(cors({
-  origin: 'http://localhost:5173',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
+app.use(cors());
 app.use(express.json());
+app.use('/api', routes);
 
-// Create database pool
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: parseInt(process.env.DB_PORT || '5432'),
-});
-
-// Test database connection
-async function testConnection() {
+async function startServer() {
   try {
-    const client = await pool.connect();
-    const result = await client.query('SELECT NOW()');
-    console.log('Successfully connected to database:', result.rows[0].now);
-    client.release();
-    return true;
-  } catch (err) {
-    console.error('Initial database connection failed:', err);
-    return false;
+    // Initialize Neo4j connection
+    await initNeo4j();
+
+    app.listen(port, () => {
+      console.log(`Server is running on port ${port}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
   }
 }
 
-// Use the router
-const routes = createRoutes(pool);
-app.use('/api', routes);
-
-const PORT = process.env.PORT || 3001;
-
-// Start server only after testing database connection
-testConnection().then((success) => {
-  if (success) {
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  } else {
-    console.error('Failed to connect to database. Check your connection settings.');
-    process.exit(1);
-  }
+// Handle cleanup on server shutdown
+process.on('SIGTERM', async () => {
+  console.log('Server is shutting down...');
+  await driver.close();
+  process.exit(0);
 });
+
+startServer();

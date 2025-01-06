@@ -34,78 +34,128 @@ graph TB
 erDiagram
     ORGANIZATIONS ||--o{ AREAS : contains
     AREAS ||--o{ TEAMS : contains
-    TEAMS ||--o{ APPLICATIONS : owns
-    APPLICATIONS ||--o{ ROADMAP_PROJECTS : participates_in
-    PROJECTS ||--o{ ROADMAP_PROJECTS : includes
-    PROJECTS ||--o{ PROJECT_DEPENDENCIES : has
+    TEAMS ||--o{ ARCHITECTS : has
     ARCHITECTS ||--o{ APPLICATIONS : oversees
+    APPLICATIONS ||--o{ SUBSYSTEMS : contains
+    SUBSYSTEMS ||--o{ CAPABILITIES : provides
+    PROJECTS ||--o{ PROJECT_SUBSCRIPTIONS : has
+    TEAMS ||--o{ PROJECT_SUBSCRIPTIONS : subscribes_to
+    PROJECTS ||--o{ PROJECT_DEPENDENCIES : depends_on
+    PROJECTS ||--o{ PROJECT_SUBSYSTEMS : includes
+    SUBSYSTEMS ||--o{ PROJECT_SUBSYSTEMS : used_in
+    ARCHITECTS ||--o{ PROJECTS : owns
+    TEAMS ||--o{ PROJECTS : owns
 
     ORGANIZATIONS {
-        int id PK
+        uuid id PK
         string name
-        string description
-        timestamp created_at
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     AREAS {
-        int id PK
+        uuid id PK
+        uuid organization_id FK
         string name
-        string description
-        int organization_id FK
-        timestamp created_at
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     TEAMS {
-        int id PK
+        uuid id PK
+        uuid area_id FK
         string name
-        string description
-        int area_id FK
-        timestamp created_at
-    }
-
-    APPLICATIONS {
-        int id PK
-        string name
-        string description
-        string status
-        int team_id FK
-        int architect_id FK
-        timestamp created_at
-    }
-
-    PROJECTS {
-        int id PK
-        string title
-        string description
-        string type
-        string status
-        date start_date
-        date end_date
-        timestamp created_at
-    }
-
-    PROJECT_DEPENDENCIES {
-        int id PK
-        int project_id FK
-        int dependency_project_id FK
-        timestamp created_at
-    }
-
-    ROADMAP_PROJECTS {
-        int id PK
-        int application_id FK
-        int project_id FK
-        date custom_start_date
-        date custom_end_date
-        timestamp created_at
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     ARCHITECTS {
-        int id PK
+        uuid id PK
+        uuid team_id FK
         string name
         string email
-        timestamp created_at
+        timestamptz created_at
+        timestamptz updated_at
     }
+
+    APPLICATIONS {
+        uuid id PK
+        uuid architect_id FK
+        string name
+        string description
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    SUBSYSTEMS {
+        serial id PK
+        uuid application_id FK
+        string name
+        string description
+        string enterprise_id
+        string type
+        string status
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    CAPABILITIES {
+        serial id PK
+        integer subsystem_id FK
+        string name
+        string description
+        string type
+        string status
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    PROJECTS {
+        uuid id PK
+        string name
+        string description
+        date start_date
+        date end_date
+        string status
+        uuid owner_architect_id FK
+        uuid owner_team_id FK
+        string project_type
+        boolean is_shared
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    PROJECT_SUBSCRIPTIONS {
+        uuid id PK
+        uuid project_id FK
+        uuid team_id FK
+        date start_date
+        date end_date
+        string status
+        boolean is_starred
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    PROJECT_DEPENDENCIES {
+        serial id PK
+        uuid project_id FK
+        uuid dependency_project_id FK
+        string dependency_type
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    PROJECT_SUBSYSTEMS {
+        serial id PK
+        uuid project_id FK
+        integer subsystem_id FK
+        date custom_start_date
+        date custom_end_date
+        string notes
+        timestamptz created_at
+    }
+}
 ```
 
 ## Component Architecture
@@ -120,16 +170,21 @@ graph TB
         Projects[ProjectsView]
         Teams[TeamsView]
         Orgs[OrganizationsView]
+        Ingestion[IngestionView]
+        Architect[ApplicationArchitectureView]
         
         App --> Dashboard
         App --> Roadmap
         App --> Projects
         App --> Teams
         App --> Orgs
+        App --> Ingestion
+        App --> Architect
         
         Projects --> CreateProject[CreateProjectModal]
+        Projects --> ProjectDetails[ProjectDetailsView]
         Teams --> TeamDetails[TeamDetailsView]
-        Projects --> ProjectImpact[ProjectImpactView]
+        Teams --> TeamRoadmap[TeamRoadmapView]
     end
 ```
 

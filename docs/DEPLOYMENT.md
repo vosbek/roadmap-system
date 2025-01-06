@@ -50,6 +50,11 @@ sudo -u postgres psql
 CREATE DATABASE roadmap_system;
 CREATE USER roadmap_user WITH ENCRYPTED PASSWORD 'your_password';
 GRANT ALL PRIVILEGES ON DATABASE roadmap_system TO roadmap_user;
+
+-- Create schema and grant permissions
+\c roadmap_system
+CREATE SCHEMA roadmap;
+GRANT ALL ON SCHEMA roadmap TO roadmap_user;
 \q
 
 # Enable remote connections (if needed)
@@ -114,6 +119,7 @@ DB_PORT=5432
 DB_NAME=roadmap_system
 DB_USER=roadmap_user
 DB_PASSWORD=your_password
+DB_SCHEMA=roadmap
 PORT=3001
 EOL
 
@@ -189,8 +195,8 @@ BACKUP_FILE="$BACKUP_DIR/backup_$TIMESTAMP.sql"
 # Create backup directory
 mkdir -p $BACKUP_DIR
 
-# Backup database
-pg_dump -U roadmap_user roadmap_system > $BACKUP_FILE
+# Backup database with schema
+pg_dump -U roadmap_user -n roadmap roadmap_system > $BACKUP_FILE
 
 # Compress backup
 gzip $BACKUP_FILE
@@ -249,7 +255,7 @@ cd /path/to/roadmap-system/client
 git pull
 npm install
 npm run build
-sudo cp -r dist/* /var/www/roadmap-system/client/
+sudo cp -r dist /var/www/roadmap-system/client
 ```
 
 ### 2. Database Maintenance
@@ -321,18 +327,75 @@ gzip_types text/plain text/css application/json application/javascript text/xml 
 
 Add to postgresql.conf:
 ```ini
-max_connections = 100
-shared_buffers = 256MB
-effective_cache_size = 768MB
-maintenance_work_mem = 64MB
+# Memory Configuration
+shared_buffers = 256MB                  # 25% of available RAM
+work_mem = 32MB                         # Increased for complex joins
+maintenance_work_mem = 256MB            # Increased for vacuum operations
+effective_cache_size = 768MB            # 75% of available RAM
+
+# Query Planner
+random_page_cost = 1.1                  # Optimized for SSDs
+effective_io_concurrency = 200          # Increased for SSDs
+default_statistics_target = 100         # Default statistics target
+
+# Write Ahead Log
+wal_buffers = 16MB                      # Increased for write performance
 checkpoint_completion_target = 0.9
-wal_buffers = 16MB
-default_statistics_target = 100
-random_page_cost = 1.1
-effective_io_concurrency = 200
-work_mem = 2621kB
 min_wal_size = 1GB
 max_wal_size = 4GB
+
+# Connection Settings
+max_connections = 100                   # Adjust based on load
+```
+
+Create appropriate indexes:
+```sql
+-- Application and Subsystem lookups
+CREATE INDEX idx_applications_team ON roadmap.applications(team_id);
+CREATE INDEX idx_applications_architect ON roadmap.applications(architect_id);
+CREATE INDEX idx_subsystems_application ON roadmap.subsystems(application_id);
+CREATE INDEX idx_subsystems_type ON roadmap.subsystems(type);
+CREATE INDEX idx_subsystems_status ON roadmap.subsystems(status);
+
+-- Capability lookups
+CREATE INDEX idx_capabilities_subsystem ON roadmap.capabilities(subsystem_id);
+CREATE INDEX idx_capabilities_type ON roadmap.capabilities(type);
+CREATE INDEX idx_capabilities_status ON roadmap.capabilities(status);
+
+-- Project lookups
+CREATE INDEX idx_projects_type ON roadmap.projects(type);
+CREATE INDEX idx_projects_status ON roadmap.projects(status);
+CREATE INDEX idx_projects_dates ON roadmap.projects(start_date, end_date);
+CREATE INDEX idx_projects_meta ON roadmap.projects USING gin(meta);
+
+-- Roadmap project lookups
+CREATE INDEX idx_roadmap_projects_subsystem ON roadmap.roadmap_projects(subsystem_id);
+CREATE INDEX idx_roadmap_projects_project ON roadmap.roadmap_projects(project_id);
+CREATE INDEX idx_roadmap_projects_dates ON roadmap.roadmap_projects(custom_start_date, custom_end_date);
+
+-- Enterprise ID lookups
+CREATE INDEX idx_applications_enterprise_id ON roadmap.applications(enterprise_id);
+CREATE INDEX idx_subsystems_enterprise_id ON roadmap.subsystems(enterprise_id);
+```
+
+Vacuum and analyze settings:
+```sql
+-- Regular maintenance
+ALTER TABLE roadmap.projects SET (autovacuum_vacuum_scale_factor = 0.05);
+ALTER TABLE roadmap.roadmap_projects SET (autovacuum_vacuum_scale_factor = 0.05);
+ALTER TABLE roadmap.subsystems SET (autovacuum_vacuum_scale_factor = 0.05);
+
+-- Analyze all tables
+ANALYZE VERBOSE roadmap.organizations;
+ANALYZE VERBOSE roadmap.areas;
+ANALYZE VERBOSE roadmap.teams;
+ANALYZE VERBOSE roadmap.architects;
+ANALYZE VERBOSE roadmap.applications;
+ANALYZE VERBOSE roadmap.subsystems;
+ANALYZE VERBOSE roadmap.capabilities;
+ANALYZE VERBOSE roadmap.projects;
+ANALYZE VERBOSE roadmap.project_dependencies;
+ANALYZE VERBOSE roadmap.roadmap_projects;
 ```
 
 ## Scaling Considerations

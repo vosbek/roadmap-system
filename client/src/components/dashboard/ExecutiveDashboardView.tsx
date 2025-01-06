@@ -1,19 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  BarChart3,
-  Activity,
-  Calendar,
-  Users,
-  Building2,
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  TrendingUp,
-  Network,
-  Zap,
-  Shield
+  Activity, TrendingUp, AlertTriangle, Shield,
+  Network, Zap, Clock, CheckCircle2, Users,
+  Layers, Component
 } from 'lucide-react';
+
+interface Area {
+  id: number;
+  name: string;
+  description: string;
+  organization_id: number;
+}
+
+interface Team {
+  id: number;
+  name: string;
+  area_id: number;
+}
+
+interface Application {
+  id: number;
+  name: string;
+  status: string;
+  team_id: number;
+}
 
 interface Project {
   id: number;
@@ -23,17 +34,6 @@ interface Project {
   status: string;
   start_date: string;
   end_date: string;
-}
-
-interface Team {
-  id: number;
-  name: string;
-  area_id: number;
-}
-
-interface Organization {
-  id: number;
-  name: string;
 }
 
 const ExecutiveDashboardView: React.FC = () => {
@@ -56,10 +56,18 @@ const ExecutiveDashboardView: React.FC = () => {
     }
   });
 
-  const { data: organizations } = useQuery<Organization[]>({
-    queryKey: ['organizations'],
+  const { data: areas } = useQuery<Area[]>({
+    queryKey: ['areas'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:3001/api/organizations');
+      const response = await fetch('http://localhost:3001/api/areas');
+      return response.json();
+    }
+  });
+
+  const { data: applications } = useQuery<Application[]>({
+    queryKey: ['applications'],
+    queryFn: async () => {
+      const response = await fetch('http://localhost:3001/api/applications');
       return response.json();
     }
   });
@@ -73,6 +81,7 @@ const ExecutiveDashboardView: React.FC = () => {
   const inProgressProjects = projects?.filter(p => p.status === 'in_progress').length || 0;
   const completedProjects = projects?.filter(p => p.status === 'completed').length || 0;
   const plannedProjects = projects?.filter(p => p.status === 'planning').length || 0;
+  const atRiskProjects = projects?.filter(p => p.status === 'at_risk').length || 0;
 
   const projectTypes = projects?.reduce((acc, project) => {
     acc[project.type] = (acc[project.type] || 0) + 1;
@@ -151,19 +160,19 @@ const ExecutiveDashboardView: React.FC = () => {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <div className="flex items-center justify-between mb-4">
             <div className="bg-purple-50 p-3 rounded-lg">
-              <Building2 className="w-6 h-6 text-purple-500" />
+              <Layers className="w-6 h-6 text-purple-500" />
             </div>
-            <span className="text-sm font-medium text-purple-600">Organizational Impact</span>
+            <span className="text-sm font-medium text-purple-600">Area Coverage</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-2xl font-bold text-gray-900">{organizations?.length || 0}</span>
-            <span className="text-sm text-gray-500">Business Units Engaged</span>
+            <span className="text-2xl font-bold text-gray-900">{areas?.length || 0}</span>
+            <span className="text-sm text-gray-500">Areas Engaged</span>
           </div>
           <div className="mt-4">
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
                 className="bg-purple-500 h-2 rounded-full"
-                style={{ width: '75%' }}
+                style={{ width: `${(areas?.length || 0) / 10 * 100}%` }}
               />
             </div>
           </div>
@@ -204,17 +213,19 @@ const ExecutiveDashboardView: React.FC = () => {
             <span className="text-sm font-medium text-red-600">Risk Profile</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-2xl font-bold text-gray-900">Medium</span>
-            <span className="text-sm text-gray-500">Overall Risk Level</span>
+            <span className="text-2xl font-bold text-gray-900">{atRiskProjects}</span>
+            <span className="text-sm text-gray-500">Projects at Risk</span>
           </div>
           <div className="mt-4 space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Security Compliance</span>
-              <span className="text-green-600">98%</span>
+              <span className="text-gray-500">Critical Projects</span>
+              <span className="text-red-600">{atRiskProjects}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Technical Debt</span>
-              <span className="text-yellow-600">12%</span>
+              <span className="text-gray-500">Needs Attention</span>
+              <span className="text-yellow-600">
+                {inProgressProjects - atRiskProjects}
+              </span>
             </div>
           </div>
         </div>
@@ -297,23 +308,29 @@ const ExecutiveDashboardView: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Section - Team Distribution */}
+      {/* Bottom Section - Area Distribution */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">Team Distribution & Capacity</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">Area Distribution & Capacity</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {organizations?.slice(0, 4).map((org, index) => (
-            <div key={org.id} className="flex flex-col">
+          {areas?.slice(0, 4).map((area, index) => (
+            <div key={area.id} className="flex flex-col">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-medium text-gray-700">{org.name}</span>
+                <span className="text-sm font-medium text-gray-700">{area.name}</span>
                 <span className="text-xs text-gray-500">
-                  {teams?.filter(t => t.area_id === org.id).length} teams
+                  {teams?.filter(t => t.area_id === area.id).length} teams
                 </span>
               </div>
               <div className="flex-1 flex items-end">
                 <div className="w-full bg-gray-100 rounded-lg h-24 relative">
                   <div
                     className="absolute bottom-0 left-0 right-0 bg-blue-500 rounded-lg"
-                    style={{ height: `${60}%`, opacity: 0.1 + (index * 0.2) }}
+                    style={{ 
+                      height: `${Math.min(
+                        ((teams?.filter(t => t.area_id === area.id).length || 0) / 5) * 100,
+                        100
+                      )}%`,
+                      opacity: 0.1 + (index * 0.2)
+                    }}
                   />
                 </div>
               </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Users, Layout, Calendar } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Users, Layout, Calendar, LineChart } from 'lucide-react';
 
 interface TeamDetails {
   id: number;
@@ -35,6 +35,7 @@ interface TeamDetails {
 
 const TeamDetailsView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   
   const { data: team, isLoading } = useQuery<TeamDetails>({
     queryKey: ['team', id],
@@ -64,9 +65,18 @@ const TeamDetailsView: React.FC = () => {
           </Link>
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-semibold">{team.name}</h1>
-            <button className="px-3 py-2 text-sm bg-blue-600 text-white rounded-md">
-              Edit Team
-            </button>
+            <div className="flex items-center space-x-3">
+              <button 
+                onClick={() => navigate(`/teams/${id}/roadmap`)}
+                className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-md flex items-center hover:bg-indigo-700"
+              >
+                <LineChart className="w-4 h-4 mr-2" />
+                View Roadmap
+              </button>
+              <button className="px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                Edit Team
+              </button>
+            </div>
           </div>
           <div className="mt-2 text-gray-600">
             {team.area.organization.name} / {team.area.name}

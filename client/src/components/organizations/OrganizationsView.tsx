@@ -3,115 +3,70 @@ import { useQuery } from '@tanstack/react-query';
 import { Plus, Building2, Layers, Users, Layout, GitBranch, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-interface Organization {
-  id: number;
-  name: string;
-  description: string;
-}
-
-interface Area {
-  id: number;
-  name: string;
-  organization_id: number;
-}
-
-interface Team {
-  id: number;
-  name: string;
-  area_id: number;
-}
-
-interface Application {
-  id: number;
-  name: string;
-  status: string;
-  team_id: number;
-}
-
 interface Project {
   id: number;
   title: string;
+  description: string;
   status: string;
   type: string;
   start_date: string;
   end_date: string;
 }
 
-interface RoadmapProject {
-  application_id: number;
-  project_id: number;
+interface Application {
+  id: number;
+  name: string;
+  projects: Project[];
+}
+
+interface Team {
+  id: number;
+  name: string;
+  applications: Application[];
+}
+
+interface Area {
+  id: number;
+  name: string;
+  teams: Team[];
+}
+
+interface Organization {
+  id: number;
+  name: string;
+  description: string;
+  areas: Area[];
 }
 
 const OrganizationsView: React.FC = () => {
   const navigate = useNavigate();
 
-  const { data: organizations, isLoading: orgsLoading } = useQuery<Organization[]>({
-    queryKey: ['organizations'],
+  const { data: organizations, isLoading } = useQuery<Organization[]>({
+    queryKey: ['organizations_details'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:3001/api/organizations');
+      const response = await fetch('http://localhost:3001/api/organizations/details');
       return response.json();
     }
   });
 
-  const { data: areas, isLoading: areasLoading } = useQuery<Area[]>({
-    queryKey: ['areas'],
-    queryFn: async () => {
-      const response = await fetch('http://localhost:3001/api/areas');
-      return response.json();
-    }
-  });
-
-  const { data: teams, isLoading: teamsLoading } = useQuery<Team[]>({
-    queryKey: ['teams'],
-    queryFn: async () => {
-      const response = await fetch('http://localhost:3001/api/teams');
-      return response.json();
-    }
-  });
-
-  const { data: applications, isLoading: appsLoading } = useQuery<Application[]>({
-    queryKey: ['applications'],
-    queryFn: async () => {
-      const response = await fetch('http://localhost:3001/api/applications');
-      return response.json();
-    }
-  });
-
-  const { data: projects, isLoading: projectsLoading } = useQuery<Project[]>({
-    queryKey: ['projects'],
-    queryFn: async () => {
-      const response = await fetch('http://localhost:3001/api/projects');
-      return response.json();
-    }
-  });
-
-  const { data: roadmapProjects, isLoading: roadmapLoading } = useQuery<RoadmapProject[]>({
-    queryKey: ['roadmap_projects'],
-    queryFn: async () => {
-      const response = await fetch('http://localhost:3001/api/roadmap_projects');
-      return response.json();
-    }
-  });
-
-  if (orgsLoading || areasLoading || teamsLoading || appsLoading || projectsLoading || roadmapLoading) {
+  if (isLoading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
 
-  const getOrganizationProjects = (orgId: number): Project[] => {
-    const orgTeams = teams?.filter(t => {
-      const teamArea = areas?.find(a => a.id === t.area_id);
-      return teamArea?.organization_id === orgId;
-    }) || [];
-
-    const orgApplications = applications?.filter(app => 
-      orgTeams.some(team => team.id === app.team_id)
-    ) || [];
-
-    const orgProjectIds = roadmapProjects?.filter(rp =>
-      orgApplications.some(app => app.id === rp.application_id)
-    ).map(rp => rp.project_id) || [];
-
-    return (projects?.filter(p => orgProjectIds.includes(p.id)) || []);
+  const getOrganizationProjects = (org: Organization): Project[] => {
+    const projectMap = new Map<number, Project>();
+    org.areas?.forEach(area => {
+      area.teams?.forEach(team => {
+        team.applications?.forEach(app => {
+          if (app.projects) {
+            app.projects.forEach(project => {
+              projectMap.set(project.id, project);
+            });
+          }
+        });
+      });
+    });
+    return Array.from(projectMap.values());
   };
 
   const getProjectTypeColor = (type: string): string => {
@@ -148,9 +103,9 @@ const OrganizationsView: React.FC = () => {
       <div className="flex-1 p-6 overflow-auto">
         <div className="max-w-7xl mx-auto grid grid-cols-1 gap-6">
           {organizations?.map(org => {
-            const orgProjects = getOrganizationProjects(org.id);
-            const activeProjects = orgProjects.filter(p => p.status === 'In Progress');
-            const plannedProjects = orgProjects.filter(p => p.status === 'Planning');
+            const orgProjects = getOrganizationProjects(org);
+            const activeProjects = orgProjects.filter(p => p.status.toLowerCase() === 'in progress');
+            const plannedProjects = orgProjects.filter(p => p.status.toLowerCase() === 'planned');
             
             return (
               <div key={org.id} className="bg-white border rounded-lg shadow-sm">
@@ -175,7 +130,7 @@ const OrganizationsView: React.FC = () => {
                       <span className="font-medium">Areas</span>
                     </div>
                     <p className="text-2xl font-semibold">
-                      {areas?.filter(a => a.organization_id === org.id).length}
+                      {org.areas?.length || 0}
                     </p>
                   </div>
                   <div className="p-4 bg-green-50 rounded-lg">
@@ -184,10 +139,7 @@ const OrganizationsView: React.FC = () => {
                       <span className="font-medium">Teams</span>
                     </div>
                     <p className="text-2xl font-semibold">
-                      {teams?.filter(t => {
-                        const teamArea = areas?.find(a => a.id === t.area_id);
-                        return teamArea?.organization_id === org.id;
-                      }).length}
+                      {org.areas?.reduce((acc, area) => acc + (area.teams?.length || 0), 0)}
                     </p>
                   </div>
                   <div className="p-4 bg-purple-50 rounded-lg">
@@ -196,11 +148,11 @@ const OrganizationsView: React.FC = () => {
                       <span className="font-medium">Applications</span>
                     </div>
                     <p className="text-2xl font-semibold">
-                      {applications?.filter(app => {
-                        const team = teams?.find(t => t.id === app.team_id);
-                        const area = areas?.find(a => a.id === team?.area_id);
-                        return area?.organization_id === org.id;
-                      }).length}
+                      {org.areas?.reduce((acc, area) => 
+                        acc + area.teams?.reduce((teamAcc, team) => 
+                          teamAcc + (team.applications?.length || 0), 0
+                        ) || 0, 0
+                      )}
                     </p>
                   </div>
                   <div className="p-4 bg-orange-50 rounded-lg">

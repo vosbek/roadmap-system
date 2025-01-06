@@ -25,14 +25,18 @@ Response:
 ```json
 [
   {
-    "id": 1,
-    "title": "Cloud Migration",
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "name": "Cloud Migration",
     "description": "Enterprise cloud migration",
-    "type": "infrastructure",
+    "project_type": "infrastructure",
     "status": "in_progress",
     "start_date": "2024-01-01",
     "end_date": "2024-06-30",
-    "created_at": "2024-01-01T00:00:00Z"
+    "owner_architect_id": "123e4567-e89b-12d3-a456-426614174001",
+    "owner_team_id": "123e4567-e89b-12d3-a456-426614174002",
+    "is_shared": false,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
   }
 ]
 ```
@@ -45,10 +49,10 @@ GET /projects/:id/impact
 Response:
 ```json
 {
-  "id": 1,
-  "title": "Cloud Migration",
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "name": "Cloud Migration",
   "status": "in_progress",
-  "type": "infrastructure",
+  "project_type": "infrastructure",
   "description": "Enterprise cloud migration",
   "metrics": {
     "impactedTeams": 3,
@@ -83,20 +87,69 @@ POST /projects
 Request Body:
 ```json
 {
-  "title": "New Project",
+  "name": "New Project",
   "description": "Project description",
-  "type": "infrastructure",
+  "project_type": "infrastructure",
   "status": "planning",
   "start_date": "2024-01-01",
   "end_date": "2024-06-30",
-  "teams": [1, 2]
+  "owner_architect_id": "123e4567-e89b-12d3-a456-426614174001",
+  "owner_team_id": "123e4567-e89b-12d3-a456-426614174002",
+  "is_shared": false
 }
 ```
 
 Response:
 ```json
 {
-  "id": 2
+  "id": "123e4567-e89b-12d3-a456-426614174003"
+}
+```
+
+### Project Subscriptions
+
+#### Get Project Subscriptions
+```http
+GET /projects/:id/subscriptions
+```
+
+Response:
+```json
+[
+  {
+    "id": "123e4567-e89b-12d3-a456-426614174004",
+    "project_id": "123e4567-e89b-12d3-a456-426614174000",
+    "team_id": "123e4567-e89b-12d3-a456-426614174005",
+    "start_date": "2024-01-01",
+    "end_date": "2024-06-30",
+    "status": "active",
+    "is_starred": false,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+]
+```
+
+#### Create Project Subscription
+```http
+POST /projects/:id/subscriptions
+```
+
+Request Body:
+```json
+{
+  "team_id": "123e4567-e89b-12d3-a456-426614174005",
+  "start_date": "2024-01-01",
+  "end_date": "2024-06-30",
+  "status": "active",
+  "is_starred": false
+}
+```
+
+Response:
+```json
+{
+  "id": "123e4567-e89b-12d3-a456-426614174004"
 }
 ```
 
@@ -111,11 +164,11 @@ Response:
 ```json
 [
   {
-    "id": 1,
+    "id": "123e4567-e89b-12d3-a456-426614174005",
     "name": "Cloud Platform",
-    "description": "Cloud infrastructure team",
-    "area_id": 1,
-    "created_at": "2024-01-01T00:00:00Z"
+    "area_id": "123e4567-e89b-12d3-a456-426614174006",
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
   }
 ]
 ```
@@ -128,32 +181,27 @@ GET /teams/:id
 Response:
 ```json
 {
-  "id": 1,
+  "id": "123e4567-e89b-12d3-a456-426614174005",
   "name": "Cloud Platform",
-  "description": "Cloud infrastructure team",
   "area": {
-    "id": 1,
+    "id": "123e4567-e89b-12d3-a456-426614174006",
     "name": "Infrastructure",
     "organization": {
-      "id": 1,
+      "id": "123e4567-e89b-12d3-a456-426614174007",
       "name": "Technology Division"
     }
   },
-  "applications": [
+  "architects": [
     {
-      "id": 1,
-      "name": "Cloud Platform",
-      "status": "active",
-      "architect": {
-        "name": "John Smith",
-        "email": "john.smith@company.com"
-      }
+      "id": "123e4567-e89b-12d3-a456-426614174001",
+      "name": "John Smith",
+      "email": "john.smith@company.com"
     }
   ],
   "projects": [
     {
-      "id": 1,
-      "title": "Cloud Migration",
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "name": "Cloud Migration",
       "status": "in_progress",
       "start_date": "2024-01-01",
       "end_date": "2024-06-30"
@@ -173,10 +221,10 @@ Response:
 ```json
 [
   {
-    "id": 1,
+    "id": "123e4567-e89b-12d3-a456-426614174007",
     "name": "Technology Division",
-    "description": "Core technology and infrastructure",
-    "created_at": "2024-01-01T00:00:00Z"
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
   }
 ]
 ```
@@ -192,11 +240,11 @@ Response:
 ```json
 [
   {
-    "id": 1,
+    "id": "123e4567-e89b-12d3-a456-426614174006",
     "name": "Infrastructure",
-    "description": "Core infrastructure services",
-    "organization_id": 1,
-    "created_at": "2024-01-01T00:00:00Z"
+    "organization_id": "123e4567-e89b-12d3-a456-426614174007",
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
   }
 ]
 ```
@@ -212,12 +260,94 @@ Response:
 ```json
 [
   {
-    "id": 1,
+    "id": "123e4567-e89b-12d3-a456-426614174008",
     "name": "Cloud Platform",
     "description": "Core cloud infrastructure",
+    "architect_id": "123e4567-e89b-12d3-a456-426614174001",
+    "subsystems": [
+      {
+        "id": 1,
+        "name": "eB2B Feeds Processing",
+        "description": "Electronic Business-to-Business feed processing",
+        "enterprise_id": "1710",
+        "type": "batch",
+        "status": "active",
+        "capabilities": [
+          {
+            "id": 1,
+            "name": "Real-time Processing",
+            "description": "Real-time feed processing capability",
+            "type": "core",
+            "status": "active"
+          }
+        ]
+      }
+    ],
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+]
+```
+
+### Subsystems
+
+#### Get Subsystem Details
+```http
+GET /subsystems/:id
+```
+
+Response:
+```json
+{
+  "id": 1,
+  "name": "eB2B Feeds Processing",
+  "description": "Electronic Business-to-Business feed processing",
+  "enterprise_id": "1710",
+  "type": "batch",
+  "status": "active",
+  "application": {
+    "id": 1,
+    "name": "Cloud Platform",
+    "status": "active"
+  },
+  "capabilities": [
+    {
+      "id": 1,
+      "name": "Real-time Processing",
+      "type": "core",
+      "status": "active"
+    }
+  ],
+  "projects": [
+    {
+      "id": 1,
+      "title": "Processing Engine Upgrade",
+      "type": "infrastructure",
+      "status": "in_progress",
+      "start_date": "2024-02-01",
+      "end_date": "2024-05-31"
+    }
+  ]
+}
+```
+
+### Capabilities
+
+#### Get All Capabilities
+```http
+GET /capabilities
+```
+
+Response:
+```json
+[
+  {
+    "id": 1,
+    "subsystem_id": 1,
+    "name": "Real-time Processing",
+    "description": "Real-time feed processing capability",
+    "type": "core",
     "status": "active",
-    "team_id": 1,
-    "architect_id": 1,
     "created_at": "2024-01-01T00:00:00Z"
   }
 ]

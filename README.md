@@ -80,6 +80,7 @@ CREATE TABLE roadmap.architects (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE,
+    contact_info TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -89,8 +90,32 @@ CREATE TABLE roadmap.applications (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     status VARCHAR(50),
+    enterprise_id VARCHAR(50),
     team_id INTEGER REFERENCES roadmap.teams(id),
     architect_id INTEGER REFERENCES roadmap.architects(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Subsystems
+CREATE TABLE roadmap.subsystems (
+    id SERIAL PRIMARY KEY,
+    application_id INTEGER REFERENCES roadmap.applications(id),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    enterprise_id VARCHAR(50),
+    type VARCHAR(50) CHECK (type IN ('web', 'batch', 'mainframe', 'other')),
+    status VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Capabilities
+CREATE TABLE roadmap.capabilities (
+    id SERIAL PRIMARY KEY,
+    subsystem_id INTEGER REFERENCES roadmap.subsystems(id),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    type VARCHAR(50) CHECK (type IN ('core', 'supporting')),
+    status VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -103,6 +128,7 @@ CREATE TABLE roadmap.projects (
     status VARCHAR(50),
     start_date DATE,
     end_date DATE,
+    meta JSONB DEFAULT '{}',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -117,10 +143,11 @@ CREATE TABLE roadmap.project_dependencies (
 -- Roadmap Projects (Applications-Projects relationship)
 CREATE TABLE roadmap.roadmap_projects (
     id SERIAL PRIMARY KEY,
-    application_id INTEGER REFERENCES roadmap.applications(id),
+    subsystem_id INTEGER REFERENCES roadmap.subsystems(id),
     project_id INTEGER REFERENCES roadmap.projects(id),
     custom_start_date DATE,
     custom_end_date DATE,
+    notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
