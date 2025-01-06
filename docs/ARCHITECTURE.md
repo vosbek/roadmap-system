@@ -155,7 +155,6 @@ erDiagram
         string notes
         timestamptz created_at
     }
-}
 ```
 
 ## Component Architecture

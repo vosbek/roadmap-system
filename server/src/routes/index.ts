@@ -798,4 +798,44 @@ router.get('/executive-view', async (req, res) => {
   }
 });
 
+// Add project creation endpoint
+router.post('/projects', async (req, res) => {
+  try {
+    const { title, description, project_type, start_date, end_date, status } = req.body;
+
+    const result = await pool.query(
+      `INSERT INTO roadmap.projects 
+        (title, description, project_type, start_date, end_date, status) 
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [title, description, project_type, start_date, end_date, status]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating project:', err);
+    res.status(500).json({ error: 'Failed to create project' });
+  }
+});
+
+// Add project-subsystem linking endpoint
+router.post('/project_subsystems', async (req, res) => {
+  try {
+    const { project_id, subsystem_id } = req.body;
+
+    const result = await pool.query(
+      `INSERT INTO roadmap.project_subsystems 
+        (project_id, subsystem_id) 
+       VALUES ($1, $2)
+       RETURNING *`,
+      [project_id, subsystem_id]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error linking project to subsystem:', err);
+    res.status(500).json({ error: 'Failed to link project to subsystem' });
+  }
+});
+
 export default router;

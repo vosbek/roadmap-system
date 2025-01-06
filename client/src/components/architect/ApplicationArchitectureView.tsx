@@ -7,6 +7,7 @@ import {
 import { format, differenceInMonths, parseISO, addMonths } from 'date-fns';
 import { Application, Project } from '../../types';
 import { useNavigate } from 'react-router-dom';
+import AddProjectModal from './AddProjectModal';
 
 interface ProjectTooltipProps {
   project: Project;
@@ -73,6 +74,8 @@ const ApplicationArchitectureView: React.FC = () => {
   const [view, setView] = useState<'timeline' | 'capability'>('timeline');
   const [expandedApps, setExpandedApps] = useState<Set<number>>(new Set());
   const [selectedTimeframe, setSelectedTimeframe] = useState('1-year');
+  const [showAddProjectModal, setShowAddProjectModal] = useState(false);
+  const [selectedSubsystemId, setSelectedSubsystemId] = useState<number | null>(null);
   const [tooltipState, setTooltipState] = useState<{ visible: boolean; x: number; y: number; project: Project | null }>({
     visible: false,
     x: 0,
@@ -86,62 +89,26 @@ const ApplicationArchitectureView: React.FC = () => {
   const cacheKey = 'application-architecture-data-17'; // eB2B application ID
   const cacheDuration = 30 * 60 * 1000; // 30 minutes
 
-  React.useEffect(() => {
-    const fetchApplication = async () => {
-      try {
-        // Check cache first
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          const { data, timestamp } = JSON.parse(cached);
-          if (Date.now() - timestamp < cacheDuration) {
-            setApplication(data);
-            return; // Don't set loading state if we have cached data
-          }
-        }
-
-        setLoading(true);
-        const controller = new AbortController();
-        const signal = controller.signal;
-        
-        const response = await fetch('/api/applications/17', { 
-          signal,
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        });
-        if (!response.ok) {
-          throw new Error('Failed to fetch application data');
-        }
-        const data = await response.json();
-        
-        // Update cache
-        localStorage.setItem(cacheKey, JSON.stringify({
-          data,
-          timestamp: Date.now()
-        }));
-        
-        setApplication(data);
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          return;
-        }
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
+  const fetchApplicationData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/applications/17'); // eB2B application ID
+      if (!response.ok) {
+        throw new Error('Failed to fetch application data');
       }
-    };
+      const data = await response.json();
+      setApplication(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching application data:', err);
+      setError('Failed to load application data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchApplication();
-
-    // Prefetch the next data update before cache expires
-    const prefetchTimeout = setTimeout(() => {
-      fetchApplication();
-    }, cacheDuration - 5 * 60 * 1000); // 5 minutes before expiry
-
-    return () => {
-      clearTimeout(prefetchTimeout);
-    };
+  React.useEffect(() => {
+    fetchApplicationData();
   }, []);
 
   // Add loading skeleton
@@ -309,6 +276,50 @@ const ApplicationArchitectureView: React.FC = () => {
     navigate(`/projects/${project.id}/impact`);
   };
 
+  const handleAddProject = async (project: Omit<Project, 'id'>) => {
+    try {
+      if (!selectedSubsystemId) {
+        throw new Error('No subsystem selected');
+      }
+
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(project),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create project');
+      }
+
+      const newProject = await response.json();
+
+      // Link project to subsystem
+      const linkResponse = await fetch('/api/project_subsystems', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          project_id: newProject.id,
+          subsystem_id: selectedSubsystemId,
+        }),
+      });
+
+      if (!linkResponse.ok) {
+        throw new Error('Failed to link project to subsystem');
+      }
+
+      // Refresh application data
+      fetchApplicationData();
+    } catch (error) {
+      console.error('Error adding project:', error);
+      // You might want to show an error message to the user here
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Enhanced Header */}
@@ -357,6 +368,14 @@ const ApplicationArchitectureView: React.FC = () => {
                     <option value="2-year">2 Year View</option>
                     <option value="3-year">3 Year View</option>
                   </select>
+
+                  <button 
+                    onClick={() => setShowAddProjectModal(true)}
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm transition-colors"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Project
+                  </button>
 
                   <button className="inline-flex items-center px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm transition-colors">
                     <Filter className="w-4 h-4 mr-2" />
@@ -424,27 +443,33 @@ const ApplicationArchitectureView: React.FC = () => {
                 {expandedApps.has(application.id) && application.subsystems?.map((subsystem) => (
                   <div key={subsystem.id} className="border-t border-gray-100">
                     <div className="flex">
-                      <div className="w-64 flex-shrink-0 bg-gray-50 px-8 py-4 border-r border-gray-200">
+                      <div className="w-64 flex-shrink-0 bg-gray-50 px-6 py-4 border-r border-gray-200">
                         <div className="flex items-center space-x-3">
-                          <div className={`flex-shrink-0 w-1 h-10 rounded-full ${
+                          <div className={`flex-shrink-0 w-1.5 h-8 rounded-full ${
                             subsystem.type === 'web' ? 'bg-gradient-to-b from-emerald-400 to-emerald-600' :
                             subsystem.type === 'batch' ? 'bg-gradient-to-b from-cyan-400 to-cyan-600' :
                             'bg-gradient-to-b from-violet-400 to-violet-600'
                           }`} />
-                          <div className="min-w-0">
-                            <div className="flex items-center space-x-2">
-                              <h3 className="text-sm font-semibold text-gray-900 truncate">{subsystem.name}</h3>
-                              <span className="text-xs font-medium bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md ring-1 ring-indigo-600/10">{subsystem.enterprise_id}</span>
-                            </div>
-                            <div className="flex items-center mt-1.5 space-x-2">
-                              <span className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md
-                                ${subsystem.type === 'web' ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/10' :
-                                  subsystem.type === 'batch' ? 'bg-cyan-50 text-cyan-700 ring-1 ring-cyan-600/10' :
-                                  'bg-violet-50 text-violet-700 ring-1 ring-violet-600/10'}`}>
+                          <div>
+                            <h3 className="text-sm font-medium text-gray-900">{subsystem.name}</h3>
+                            <div className="flex items-center mt-1 space-x-2">
+                              <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-md
+                                ${subsystem.type === 'web' ? 'bg-emerald-50 text-emerald-700' :
+                                  subsystem.type === 'batch' ? 'bg-cyan-50 text-cyan-700' :
+                                  'bg-violet-50 text-violet-700'}`}>
                                 {subsystem.type}
                               </span>
                             </div>
                           </div>
+                          <button
+                            onClick={() => {
+                              setSelectedSubsystemId(subsystem.id);
+                              setShowAddProjectModal(true);
+                            }}
+                            className="ml-auto p-1 text-gray-400 hover:text-gray-500 focus:outline-none"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                       <div className="flex-1 relative bg-white border-t border-gray-200" style={{ 
@@ -683,6 +708,18 @@ const ApplicationArchitectureView: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {showAddProjectModal && selectedSubsystemId && (
+        <AddProjectModal
+          isOpen={showAddProjectModal}
+          onClose={() => {
+            setShowAddProjectModal(false);
+            setSelectedSubsystemId(null);
+          }}
+          onAdd={handleAddProject}
+          subsystemId={selectedSubsystemId}
+        />
       )}
 
       {tooltipState.visible && tooltipState.project && (
