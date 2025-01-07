@@ -1,41 +1,52 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import { Project } from '../../types';
+import { Project, Subsystem } from '../../types';
 
 interface AddProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (project: Omit<Project, 'id'>) => Promise<void>;
-  subsystemId: number;
+  onAdd: (project: Omit<Project, 'id'>, subsystemId: number) => Promise<void>;
+  subsystemId: number | null;
+  subsystems: Subsystem[];
 }
 
-const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onAdd, subsystemId }) => {
+const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onAdd, subsystemId: initialSubsystemId, subsystems }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState('new capability');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [selectedSubsystemId, setSelectedSubsystemId] = useState<number | null>(initialSubsystemId);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || !selectedSubsystemId) return;
+
+    const projectData = {
+      name: title,
+      title,
+      description,
+      type: type,
+      project_type: type,
+      start_date: startDate,
+      end_date: endDate,
+      status: 'planned'
+    };
+
+    console.log('Submitting project data:', projectData);
 
     try {
       setIsSubmitting(true);
-      await onAdd({
-        title,
-        description,
-        project_type: type,
-        start_date: startDate,
-        end_date: endDate,
-        status: 'planned'
-      });
+      await onAdd(projectData, selectedSubsystemId);
       onClose();
     } catch (error) {
       console.error('Error adding project:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -63,6 +74,26 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onAd
               </h3>
 
               <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+                <div>
+                  <label htmlFor="subsystem" className="block text-sm font-medium text-gray-700">
+                    Subsystem
+                  </label>
+                  <select
+                    id="subsystem"
+                    required
+                    value={selectedSubsystemId || ''}
+                    onChange={(e) => setSelectedSubsystemId(e.target.value ? parseInt(e.target.value) : null)}
+                    className="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  >
+                    <option value="">Select a subsystem</option>
+                    {subsystems.map((subsystem) => (
+                      <option key={subsystem.id} value={subsystem.id}>
+                        {subsystem.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div>
                   <label htmlFor="title" className="block text-sm font-medium text-gray-700">
                     Title
@@ -144,7 +175,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onAd
                 <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !selectedSubsystemId}
                     className="inline-flex justify-center w-full px-4 py-2 text-base font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? 'Adding...' : 'Add Project'}

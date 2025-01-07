@@ -1,6 +1,7 @@
 // src/services/api.ts
 import axios from 'axios';
-import { Project, Application, RoadmapProject, Capability, ProjectDetails } from '../types';
+import { Project, Application } from '../types';
+import { RoadmapProject, Capability, ProjectDetails } from '../types/index';
 
 const api = axios.create({
   baseURL: 'http://localhost:3001/api',
@@ -13,6 +14,7 @@ export interface ProjectImpact {
   id: string;
   title: string;
   status: string;
+  type: string;
   metrics: {
     impactedTeams: number;
     organizations: number;
@@ -41,6 +43,7 @@ export const projectsApi = {
   create: (data: Partial<Project>) => api.post<Project>('/projects', data),
   update: (id: number, data: Partial<Project>) => api.put<Project>(`/projects/${id}`, data),
   delete: (id: number) => api.delete(`/projects/${id}`),
+  addDependency: (projectId: number, dependencyId: number) => api.post<void>(`/projects/${projectId}/dependencies/${dependencyId}`),
   getArchitectApplications: () => api.get<Application[]>('/architect/applications', {
     params: {
       _t: Date.now()

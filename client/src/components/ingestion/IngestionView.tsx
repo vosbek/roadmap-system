@@ -38,28 +38,34 @@ const IngestionView: React.FC = () => {
     }]);
 
     try {
-      // TODO: Implement actual file upload and processing
-      // This is a mock implementation
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Upload to the correct endpoint based on the active tab
+      const endpoint = activeTab === 'organization' ? '/api/ingestion/organization' : '/api/ingestion/projects';
       
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       setFiles(prev => prev.map(f => 
         f.id === fileId 
-          ? { ...f, status: 'processing', progress: 100 }
-          : f
-      ));
-
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      setFiles(prev => prev.map(f => 
-        f.id === fileId 
-          ? { ...f, status: 'success' }
+          ? { ...f, status: 'success', progress: 100 }
           : f
       ));
 
       // Refresh relevant data
       await queryClient.invalidateQueries({ queryKey: ['applications'] });
       await queryClient.invalidateQueries({ queryKey: ['projects'] });
+      await queryClient.invalidateQueries({ queryKey: ['teams'] });
+      await queryClient.invalidateQueries({ queryKey: ['areas'] });
     } catch (error) {
+      console.error('Error processing file:', error);
       setFiles(prev => prev.map(f => 
         f.id === fileId 
           ? { ...f, status: 'error', error: 'Failed to process file' }

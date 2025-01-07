@@ -1,5 +1,14 @@
 import express from 'express';
 import { driver } from '../config/neo4j';
+import { Pool } from 'pg';
+
+const pool = new Pool({
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432'),
+  database: process.env.DB_NAME || 'roadmap',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres'
+});
 
 interface Integration {
   targetId: string | null;
@@ -21,8 +30,80 @@ interface Application {
 
 const router = express.Router();
 
-// Get all applications with their relationships
+// Get all applications for the current architect
 router.get('/applications', async (req, res) => {
+  try {
+    // TODO: Replace with actual architect ID from auth session
+    const architectId = 1; // Temporary hardcoded value
+
+    const result = await pool.query(`
+      WITH application_data AS (
+        SELECT 
+          a.id as app_id,
+          a.*,
+          s.id as subsystem_id,
+          s.name as subsystem_name,
+          s.description as subsystem_description,
+          s.type as subsystem_type,
+          s.enterprise_id as subsystem_enterprise_id,
+          s.status as subsystem_status,
+          p.id as project_id,
+          p.title as project_title,
+          p.description as project_description,
+          p.status as project_status,
+          p.start_date as project_start_date,
+          p.end_date as project_end_date,
+          p.type as project_type,
+          p.created_at as project_created_at
+        FROM roadmap.applications a
+        LEFT JOIN roadmap.subsystems s ON s.application_id = a.id
+        LEFT JOIN roadmap.project_subsystems ps ON ps.subsystem_id = s.id
+        LEFT JOIN roadmap.projects p ON p.id = ps.project_id
+        WHERE a.architect_id = $1
+      )
+      SELECT 
+        DISTINCT ON (app_id) id, name, description, status, enterprise_id, created_at,
+        (
+          SELECT json_agg(DISTINCT jsonb_build_object(
+            'id', subsystem_id,
+            'name', subsystem_name,
+            'description', subsystem_description,
+            'type', subsystem_type,
+            'enterprise_id', subsystem_enterprise_id,
+            'status', subsystem_status,
+            'projects', (
+              SELECT json_agg(DISTINCT jsonb_build_object(
+                'id', CAST(d2.project_id AS TEXT),
+                'title', d2.project_title,
+                'description', d2.project_description,
+                'status', d2.project_status,
+                'start_date', d2.project_start_date,
+                'end_date', d2.project_end_date,
+                'type', d2.project_type,
+                'created_at', d2.project_created_at
+              ))
+              FROM application_data d2
+              WHERE d2.subsystem_id = d1.subsystem_id
+              AND d2.project_id IS NOT NULL
+            )
+          ))
+          FROM application_data d1
+          WHERE d1.app_id = application_data.app_id
+          AND d1.subsystem_id IS NOT NULL
+        ) as subsystems
+      FROM application_data
+      ORDER BY app_id, name;
+    `, [architectId]);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching architect applications:', error);
+    res.status(500).json({ error: 'Failed to fetch applications' });
+  }
+});
+
+// Get all applications with their relationships
+router.get('/applications/integrations', async (req, res) => {
   const session = driver.session();
   try {
     const result = await session.run(`

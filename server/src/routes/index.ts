@@ -801,20 +801,37 @@ router.get('/executive-view', async (req, res) => {
 // Add project creation endpoint
 router.post('/projects', async (req, res) => {
   try {
-    const { title, description, project_type, start_date, end_date, status } = req.body;
+    const { name, title, description, type, project_type, start_date, end_date, status } = req.body;
+
+    // Validate required fields
+    if (!name || !title || !description || !type || !start_date || !end_date || !status) {
+      console.error('Missing required fields:', { name, title, description, type, start_date, end_date, status });
+      return res.status(400).json({ 
+        error: 'Missing required fields',
+        details: 'All fields (name, title, description, type, start_date, end_date, status) are required'
+      });
+    }
+
+    console.log('Creating project with data:', { name, title, description, type, start_date, end_date, status });
 
     const result = await pool.query(
       `INSERT INTO roadmap.projects 
-        (title, description, project_type, start_date, end_date, status) 
-       VALUES ($1, $2, $3, $4, $5, $6)
+        (name, title, description, type, project_type, start_date, end_date, status) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [title, description, project_type, start_date, end_date, status]
+      [name, title, description, type.toLowerCase(), project_type.toLowerCase(), start_date, end_date, status]
     );
 
+    console.log('Project created successfully:', result.rows[0]);
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating project:', err);
-    res.status(500).json({ error: 'Failed to create project' });
+    console.error('Error details:', err instanceof Error ? err.message : 'Unknown error');
+    console.error('Request body:', req.body);
+    res.status(500).json({ 
+      error: 'Failed to create project', 
+      details: err instanceof Error ? err.message : 'Unknown error' 
+    });
   }
 });
 
@@ -835,6 +852,37 @@ router.post('/project_subsystems', async (req, res) => {
   } catch (err) {
     console.error('Error linking project to subsystem:', err);
     res.status(500).json({ error: 'Failed to link project to subsystem' });
+  }
+});
+
+// Add project update endpoint
+router.put('/projects/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { type, title, description, status, start_date, end_date } = req.body;
+
+    const result = await pool.query(
+      `UPDATE roadmap.projects 
+       SET type = COALESCE($1, type),
+           title = COALESCE($2, title),
+           description = COALESCE($3, description),
+           status = COALESCE($4, status),
+           start_date = COALESCE($5, start_date),
+           end_date = COALESCE($6, end_date),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $7
+       RETURNING *`,
+      [type, title, description, status, start_date, end_date, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating project:', err);
+    res.status(500).json({ error: 'Failed to update project' });
   }
 });
 

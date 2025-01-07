@@ -17,9 +17,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Left Navigation */}
-      <div className="w-64 bg-white border-r">
+      <div className="w-64 bg-[#0071bf] border-r border-[#0071bf]/20">
         <div className="p-4">
-          <h2 className="text-xl font-semibold mb-6">Application Roadmap</h2>
+          <h2 className="text-xl font-semibold mb-6 text-white">Application Roadmap</h2>
           <nav className="space-y-1">
             {navItems.map((item) => (
               <Link
@@ -27,8 +27,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 to={item.path}
                 className={`flex items-center px-4 py-2 text-sm rounded-md ${
                   location.pathname === item.path
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-600 hover:bg-gray-50'
+                    ? 'bg-white/20 text-white'
+                    : 'text-white/80 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 {item.icon}

@@ -1,13 +1,36 @@
 import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  Plus, Filter, ChevronRight, ChevronDown, Layers,
-  Calendar, AlertCircle, Zap, Info, BarChart3,
-  X, Rocket, Power, Wrench, Trash2
+  Users, 
+  Calendar, 
+  AlertCircle,
+  Building2,
+  ArrowLeft,
+  Tag,
+  Layers,
+  GitBranch,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Rocket,
+  Power,
+  Search,
+  Plus,
+  Filter,
+  ChevronRight,
+  ChevronDown,
+  Zap,
+  Info,
+  BarChart3,
+  X,
+  Wrench,
+  Trash2
 } from 'lucide-react';
-import { format, differenceInMonths, parseISO, addMonths } from 'date-fns';
+import { projectsApi, ProjectImpact } from '../../services/api';
 import { Application, Project } from '../../types';
-import { useNavigate } from 'react-router-dom';
 import AddProjectModal from './AddProjectModal';
+import { format, differenceInMonths, parseISO, addMonths } from 'date-fns';
 
 interface ProjectTooltipProps {
   project: Project;
@@ -68,7 +91,8 @@ interface Subsystem {
 
 const ApplicationArchitectureView: React.FC = () => {
   const navigate = useNavigate();
-  const [application, setApplication] = useState<Application | null>(null);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<'timeline' | 'capability'>('timeline');
@@ -85,19 +109,20 @@ const ApplicationArchitectureView: React.FC = () => {
 
   const startDate = new Date(2024, 0, 1);
   
-  // Cache key that includes the view type and application ID
-  const cacheKey = 'application-architecture-data-17'; // eB2B application ID
+  // Cache key that includes the view type
+  const cacheKey = 'application-architecture-data';
   const cacheDuration = 30 * 60 * 1000; // 30 minutes
 
   const fetchApplicationData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/applications/17'); // eB2B application ID
+      const response = await fetch('/api/architect/applications');
       if (!response.ok) {
         throw new Error('Failed to fetch application data');
       }
       const data = await response.json();
-      setApplication(data);
+      setApplications(data);
+      setSelectedApplication(data.length > 0 ? data[0] : null);
       setError(null);
     } catch (err) {
       console.error('Error fetching application data:', err);
@@ -136,7 +161,7 @@ const ApplicationArchitectureView: React.FC = () => {
     );
   }
 
-  if (!application) {
+  if (!selectedApplication) {
     return (
       <div className="p-4 text-gray-500">
         No application data found
@@ -164,13 +189,13 @@ const ApplicationArchitectureView: React.FC = () => {
         width: '100%',
         backgroundColor: getTypeColor(project.type),
         position: 'relative',
-        height: '36px',
-        borderRadius: '8px',
+        height: '28px',
+        borderRadius: '6px',
         marginBottom: '4px',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
-        padding: '0 1rem',
+        padding: '0 0.75rem',
         color: 'white',
         fontSize: '0.875rem',
         whiteSpace: 'nowrap',
@@ -192,8 +217,8 @@ const ApplicationArchitectureView: React.FC = () => {
     const monthsSinceStart = differenceInMonths(startDate, timelineStart);
 
     const row = index;
-    const barHeight = 36;
-    const verticalGap = 8;
+    const barHeight = 28;
+    const verticalGap = 4;
     const verticalPosition = row * (barHeight + verticalGap) + 4;
 
     const leftPosition = (monthsSinceStart * 100) / timeframeMonths;
@@ -207,8 +232,8 @@ const ApplicationArchitectureView: React.FC = () => {
       height: `${barHeight}px`,
       display: 'flex',
       alignItems: 'center',
-      padding: '0 1rem',
-      borderRadius: '8px',
+      padding: '0 0.75rem',
+      borderRadius: '6px',
       color: 'white',
       fontSize: '0.875rem',
       whiteSpace: 'nowrap',
@@ -276,25 +301,19 @@ const ApplicationArchitectureView: React.FC = () => {
     navigate(`/projects/${project.id}/impact`);
   };
 
-  const handleAddProject = async (project: Omit<Project, 'id'>) => {
+  const handleAddProject = async (project: Omit<Project, 'id'>, subsystemId: number) => {
     try {
-      if (!selectedSubsystemId) {
-        throw new Error('No subsystem selected');
-      }
-
-      const response = await fetch('/api/projects', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(project),
+      // Create project using the API service
+      const response = await projectsApi.create({
+        ...project,
+        project_type: project.project_type // Use project_type consistently
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to create project');
+      
+      if (!response.data) {
+        throw new Error('No project data received from server');
       }
 
-      const newProject = await response.json();
+      const newProject = response.data;
 
       // Link project to subsystem
       const linkResponse = await fetch('/api/project_subsystems', {
@@ -304,7 +323,7 @@ const ApplicationArchitectureView: React.FC = () => {
         },
         body: JSON.stringify({
           project_id: newProject.id,
-          subsystem_id: selectedSubsystemId,
+          subsystem_id: subsystemId,
         }),
       });
 
@@ -313,10 +332,10 @@ const ApplicationArchitectureView: React.FC = () => {
       }
 
       // Refresh application data
-      fetchApplicationData();
+      await fetchApplicationData();
     } catch (error) {
       console.error('Error adding project:', error);
-      // You might want to show an error message to the user here
+      throw error instanceof Error ? error : new Error('Failed to create project');
     }
   };
 
@@ -327,8 +346,19 @@ const ApplicationArchitectureView: React.FC = () => {
         <div className="px-8 py-5">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">{application.name}</h1>
-              <p className="text-sm text-gray-600 mt-1 max-w-3xl">{application.description}</p>
+              <select
+                className="text-2xl font-semibold text-gray-900 tracking-tight bg-transparent border-none focus:ring-0 cursor-pointer hover:text-gray-600 transition-colors mb-2"
+                value={selectedApplication.id}
+                onChange={(e) => {
+                  const app = applications.find(a => a.id.toString() === e.target.value);
+                  if (app) setSelectedApplication(app);
+                }}
+              >
+                {applications.map(app => (
+                  <option key={app.id} value={app.id}>{app.name}</option>
+                ))}
+              </select>
+              <p className="text-sm text-gray-600 mt-1 max-w-3xl">{selectedApplication.description}</p>
             </div>
             <div className="flex items-center space-x-4">
               {/* View Toggle */}
@@ -370,7 +400,10 @@ const ApplicationArchitectureView: React.FC = () => {
                   </select>
 
                   <button 
-                    onClick={() => setShowAddProjectModal(true)}
+                    onClick={() => {
+                      setSelectedSubsystemId(null);
+                      setShowAddProjectModal(true);
+                    }}
                     className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm transition-colors"
                   >
                     <Plus className="w-4 h-4 mr-2" />
@@ -391,7 +424,7 @@ const ApplicationArchitectureView: React.FC = () => {
         {view === 'timeline' && (
           <div className="px-8 py-2 border-t border-gray-200 bg-white">
             <div className="flex">
-              <div className="w-64 flex-shrink-0 border-r border-gray-200" />
+              <div className="w-60 flex-shrink-0 border-r border-gray-200" />
               <div className="flex-1 grid relative" style={{ 
                 gridTemplateColumns: `repeat(${timeframeMonths}, 1fr)`,
                 marginLeft: '-1px'
@@ -427,23 +460,23 @@ const ApplicationArchitectureView: React.FC = () => {
               <div className="border-b border-gray-200 bg-white">
                 <div className="flex items-center px-8 py-4">
                   <button
-                    onClick={() => toggleExpanded(application.id)}
+                    onClick={() => toggleExpanded(selectedApplication.id)}
                     className="flex items-center space-x-2 text-gray-900 hover:text-gray-600 transition-colors"
                   >
-                    {expandedApps.has(application.id) ? (
+                    {expandedApps.has(selectedApplication.id) ? (
                       <ChevronDown className="w-5 h-5" />
                     ) : (
                       <ChevronRight className="w-5 h-5" />
                     )}
-                    <span className="font-medium text-base">{application.name}</span>
+                    <span className="font-medium text-base">{selectedApplication.name}</span>
                   </button>
                 </div>
 
                 {/* Subsystems */}
-                {expandedApps.has(application.id) && application.subsystems?.map((subsystem) => (
+                {expandedApps.has(selectedApplication.id) && selectedApplication.subsystems?.map((subsystem) => (
                   <div key={subsystem.id} className="border-t border-gray-100">
                     <div className="flex">
-                      <div className="w-64 flex-shrink-0 bg-gray-50 px-6 py-4 border-r border-gray-200">
+                      <div className="w-60 flex-shrink-0 bg-gray-50 px-6 py-4 border-r border-gray-200">
                         <div className="flex items-center space-x-3">
                           <div className={`flex-shrink-0 w-1.5 h-8 rounded-full ${
                             subsystem.type === 'web' ? 'bg-gradient-to-b from-emerald-400 to-emerald-600' :
@@ -461,19 +494,10 @@ const ApplicationArchitectureView: React.FC = () => {
                               </span>
                             </div>
                           </div>
-                          <button
-                            onClick={() => {
-                              setSelectedSubsystemId(subsystem.id);
-                              setShowAddProjectModal(true);
-                            }}
-                            className="ml-auto p-1 text-gray-400 hover:text-gray-500 focus:outline-none"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
                         </div>
                       </div>
                       <div className="flex-1 relative bg-white border-t border-gray-200" style={{ 
-                        height: `${(subsystem.projects?.length || 0) * 44 + 16}px`,
+                        height: `${(subsystem.projects?.length || 0) * 32 + 16}px`,
                         minHeight: '120px'
                       }}>
                         {renderMonthSeparators()}
@@ -535,11 +559,11 @@ const ApplicationArchitectureView: React.FC = () => {
                 <div className="px-8 py-5 border-b border-gray-200">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-xl font-semibold text-gray-900">{application.name}</h2>
-                      <p className="text-sm text-gray-600 mt-1">{application.description}</p>
+                      <h2 className="text-xl font-semibold text-gray-900">{selectedApplication.name}</h2>
+                      <p className="text-sm text-gray-600 mt-1">{selectedApplication.description}</p>
                     </div>
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600/10">
-                      {application.status}
+                      {selectedApplication.status}
                     </span>
                   </div>
                 </div>
@@ -547,7 +571,7 @@ const ApplicationArchitectureView: React.FC = () => {
                 {/* Subsystems Grid */}
                 <div className="p-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {application.subsystems?.map((subsystem) => {
+                    {selectedApplication.subsystems?.map((subsystem) => {
                       // Group projects by status
                       const newCapabilities = subsystem.projects?.filter(p => p.type?.toLowerCase() === 'new capability') || [];
                       const decommissioning = subsystem.projects?.filter(p => p.type?.toLowerCase() === 'decommission') || [];
@@ -710,7 +734,7 @@ const ApplicationArchitectureView: React.FC = () => {
         </div>
       )}
 
-      {showAddProjectModal && selectedSubsystemId && (
+      {showAddProjectModal && (
         <AddProjectModal
           isOpen={showAddProjectModal}
           onClose={() => {
@@ -719,6 +743,7 @@ const ApplicationArchitectureView: React.FC = () => {
           }}
           onAdd={handleAddProject}
           subsystemId={selectedSubsystemId}
+          subsystems={selectedApplication.subsystems || []}
         />
       )}
 
